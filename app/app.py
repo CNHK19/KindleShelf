@@ -28,7 +28,6 @@ from flask import (
 )
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.utils import secure_filename
 
 APP_VERSION = "1.2.2"
 LIBRARY_ROOT = Path(os.getenv("LIBRARY_PATH", "/library")).resolve()
@@ -179,6 +178,13 @@ def clean_display_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def safe_upload_filename(value: str) -> str:
+    name = re.sub(r"[\x00-\x1f]+", "", value)
+    name = Path(name).name
+    name = re.sub(r'[\\/:*?"<>|]+', "", name).strip(" .")
+    return name
+
+
 def title_and_author(path: Path) -> tuple[str, str]:
     stem = clean_display_text(path.stem)
     separators = (" - ", " – ", " — ", " by ")
@@ -251,6 +257,11 @@ def safe_download_stem(value: str) -> str:
     ascii_text = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     ascii_text = re.sub(r"[^A-Za-z0-9()\[\] _.-]+", "", ascii_text).strip(" .")
     return ascii_text[:140] or "ebook"
+
+
+def safe_download_filename(value: str) -> str:
+    cleaned = re.sub(r'[\\/:*?"<>|\r\n\t]+', "", value).strip(" .")
+    return cleaned[:140] or "ebook"
 
 
 def unique_library_path(filename: str) -> Path:
@@ -481,7 +492,7 @@ def upload_book():
         flash("Only .mobi files can be uploaded.", "error")
         return redirect(url_for("upload_book"))
 
-    safe_name = secure_filename(original_name)
+    safe_name = safe_upload_filename(original_name)
     if not safe_name or Path(safe_name).suffix.lower() != ".mobi":
         flash("The uploaded filename is not valid.", "error")
         return redirect(url_for("upload_book"))
@@ -546,7 +557,7 @@ def download_book(book_id: str):
         output_path,
         mimetype="application/x-mobipocket-ebook",
         as_attachment=True,
-        download_name=f"{safe_download_stem(book.title)}.mobi",
+        download_name=f"{safe_download_filename(book.title)}.mobi",
         conditional=True,
         max_age=0,
     )
