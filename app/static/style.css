@@ -1,4 +1,4 @@
-/* version 6 */
+/* version 7 */
 :root {
     --ink: #172027;
     --muted: #5d6870;
@@ -303,7 +303,7 @@ select:focus {
 }
 
 .button-secondary {
-    color: var(--ink);
+    color: #172027;
     background: #fff;
     border-color: #aaa59c;
 }
