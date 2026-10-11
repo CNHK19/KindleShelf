@@ -354,21 +354,25 @@ def copy_upload_to_library(source: Path, destination: Path) -> None:
                 pass
 
 
-def conversion_cache_path(book: Book) -> Path:
+def conversion_cache_dir(book: Book) -> Path:
     cache_key = hashlib.sha256(
         (
             f"{book.relative_path}\0{book.size_bytes}\0"
             f"{book.modified_timestamp}\0mobi-v1"
         ).encode("utf-8")
     ).hexdigest()
-    return CACHE_ROOT / cache_key / f"{safe_download_stem(book.title)}.mobi"
+    return CACHE_ROOT / cache_key
 
 
-def convert_to_mobi(book: Book) -> Path:
-    if book.absolute_path.suffix.lower() == ".mobi":
+def conversion_cache_path(book: Book, output_format: str = "mobi") -> Path:
+    return conversion_cache_dir(book) / f"{safe_download_stem(book.title)}.{output_format}"
+
+
+def convert_book_format(book: Book, output_format: str, calibre_options: list[str]) -> Path:
+    if book.absolute_path.suffix.lower() == f".{output_format}":
         return book.absolute_path
 
-    output_path = conversion_cache_path(book)
+    output_path = conversion_cache_path(book, output_format)
     if output_path.is_file() and output_path.stat().st_size > 0:
         return output_path
 
@@ -379,10 +383,7 @@ def convert_to_mobi(book: Book) -> Path:
             "ebook-convert",
             str(book.absolute_path),
             str(temporary_output),
-            "--output-profile",
-            "kindle",
-            "--mobi-file-type",
-            "both",
+            *calibre_options,
         ]
 
         try:
@@ -408,6 +409,22 @@ def convert_to_mobi(book: Book) -> Path:
 
         os.replace(temporary_output, output_path)
     return output_path
+
+
+def convert_to_mobi(book: Book) -> Path:
+    return convert_book_format(
+        book,
+        "mobi",
+        ["--output-profile", "kindle", "--mobi-file-type", "both"],
+    )
+
+
+def convert_to_azw3(book: Book) -> Path:
+    return convert_book_format(
+        book,
+        "azw3",
+        ["--output-profile", "kindle_pw3"],
+    )
 
 
 CSRF_MAX_AGE_SECONDS = 12 * 60 * 60
@@ -598,6 +615,57 @@ def download_book(book_id: str):
         mimetype="application/x-mobipocket-ebook",
         as_attachment=True,
         download_name=f"{safe_download_filename(book.title)}.mobi",
+        conditional=True,
+        max_age=0,
+    )
+
+
+ORIGINAL_FORMAT_MIMETYPES = {
+    ".mobi": "application/x-mobipocket-ebook",
+    ".azw": "application/x-mobipocket-ebook",
+    ".azw3": "application/x-mobipocket-ebook",
+    ".prc": "application/x-mobipocket-ebook",
+    ".epub": "application/epub+zip",
+    ".pdf": "application/pdf",
+    ".txt": "text/plain; charset=utf-8",
+}
+
+
+@app.get("/book/<book_id>/download/original")
+def download_book_original(book_id: str):
+    try:
+        book = get_book_from_id(book_id)
+    except FileNotFoundError:
+        abort(404)
+
+    suffix = book.absolute_path.suffix.lower()
+    return send_file(
+        book.absolute_path,
+        mimetype=ORIGINAL_FORMAT_MIMETYPES.get(suffix, "application/octet-stream"),
+        as_attachment=True,
+        download_name=f"{safe_download_filename(book.title)}{suffix}",
+        conditional=True,
+        max_age=0,
+    )
+
+
+@app.get("/book/<book_id>/download/azw3")
+def download_book_azw3(book_id: str):
+    try:
+        book = get_book_from_id(book_id)
+    except FileNotFoundError:
+        abort(404)
+
+    try:
+        output_path = convert_to_azw3(book)
+    except ConversionError as error:
+        return render_template("conversion_error.html", book=book, error=str(error)), 422
+
+    return send_file(
+        output_path,
+        mimetype="application/x-mobipocket-ebook",
+        as_attachment=True,
+        download_name=f"{safe_download_filename(book.title)}.azw3",
         conditional=True,
         max_age=0,
     )
