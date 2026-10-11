@@ -1,4 +1,4 @@
-/* version 5 */
+/* version 6 */
 :root {
     --ink: #172027;
     --muted: #5d6870;
@@ -13,6 +13,63 @@
     --success: #235c36;
     --success-bg: #e6f3e9;
     --shadow: 0 10px 30px rgba(30, 39, 43, 0.09);
+}
+
+/* Solid fallbacks for older e-reader browsers without CSS custom property support. */
+body {
+    color: #172027;
+    background: #f4f1ea;
+}
+
+a {
+    color: #164c42;
+}
+
+.site-header {
+    background: #172027;
+    border-bottom: 4px solid #1f6c5c;
+}
+
+.button {
+    background: #1f6c5c;
+    border-color: #1f6c5c;
+}
+
+.button:hover,
+.button:focus {
+    background: #164c42;
+}
+
+.button-secondary {
+    color: #172027;
+    background: #ffffff;
+    border-color: #aaa59c;
+}
+
+.button-secondary:hover,
+.button-secondary:focus {
+    background: #efede8;
+}
+
+.button-danger,
+.remove-button {
+    background: #8a2d2d;
+    border-color: #8a2d2d;
+}
+
+.button-danger:hover,
+.button-danger:focus,
+.remove-button:hover,
+.remove-button:focus {
+    background: #641f1f;
+}
+
+.step {
+    background: #1f6c5c;
+}
+
+.site-footer {
+    background: #172027;
 }
 
 * {
@@ -365,6 +422,7 @@ select:focus {
     max-width: 100%;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     flex: 0 0 auto;
 }
@@ -602,6 +660,7 @@ code {
     .book-actions {
         min-width: 0;
         max-width: 100%;
+        display: block;
         display: grid;
         grid-template-columns: minmax(0, 1fr) 50px;
         gap: 10px;
