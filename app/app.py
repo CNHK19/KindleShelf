@@ -279,13 +279,43 @@ def unique_library_path(filename: str) -> Path:
         counter += 1
 
 
-def has_mobi_header(path: Path) -> bool:
+def validate_upload_content(path: Path, suffix: str) -> bool:
+    """Validate that an uploaded file's content matches its claimed extension.
+
+    Uses magic-number checks for binary formats and a null-byte probe for
+    text-based formats. Returns False when the content clearly does not match
+    the extension (e.g. a renamed executable).
+    """
     try:
         with path.open("rb") as handle:
             header = handle.read(80)
     except OSError:
         return False
-    return len(header) >= 68 and header[60:68] == b"BOOKMOBI"
+
+    if not header:
+        return False
+
+    suffix = suffix.lower()
+
+    # Kindle / MOBI family: PalmDB container with the BOOKMOBI identifier.
+    if suffix in {".mobi", ".azw", ".azw3", ".prc"}:
+        return len(header) >= 68 and header[60:68] == b"BOOKMOBI"
+
+    # ZIP-based formats: EPUB, DOCX, ODT.
+    if suffix in {".epub", ".docx", ".odt"}:
+        return header[:2] == b"PK"
+
+    if suffix == ".pdf":
+        return header[:4] == b"%PDF"
+
+    if suffix == ".rtf":
+        return header[:5] == b"{\\rtf"
+
+    # Text-based formats: FB2 (XML), HTML, TXT.
+    if suffix in {".fb2", ".htm", ".html", ".txt"}:
+        return b"\x00" not in header
+
+    return False
 
 
 def copy_upload_to_library(source: Path, destination: Path) -> None:
@@ -484,16 +514,22 @@ def upload_book():
 
     uploaded_file = request.files.get("ebook")
     if uploaded_file is None or not uploaded_file.filename:
-        flash("Choose a MOBI file to upload.", "error")
+        flash("Choose an ebook file to upload.", "error")
         return redirect(url_for("upload_book"))
 
     original_name = Path(uploaded_file.filename).name
-    if Path(original_name).suffix.lower() != ".mobi":
-        flash("Only .mobi files can be uploaded.", "error")
+    upload_suffix = Path(original_name).suffix.lower()
+    if upload_suffix not in SUPPORTED_EXTENSIONS:
+        flash(
+            "Only supported ebook files can be uploaded: "
+            + ", ".join(sorted(ext.lstrip(".") for ext in SUPPORTED_EXTENSIONS))
+            + ".",
+            "error",
+        )
         return redirect(url_for("upload_book"))
 
     safe_name = safe_upload_filename(original_name)
-    if not safe_name or Path(safe_name).suffix.lower() != ".mobi":
+    if not safe_name or Path(safe_name).suffix.lower() not in SUPPORTED_EXTENSIONS:
         flash("The uploaded filename is not valid.", "error")
         return redirect(url_for("upload_book"))
 
@@ -503,7 +539,7 @@ def upload_book():
         with tempfile.NamedTemporaryFile(
             mode="wb",
             prefix="kindleshelf-upload-",
-            suffix=".mobi",
+            suffix=upload_suffix,
             dir=DATA_ROOT,
             delete=False,
         ) as temporary_file:
@@ -514,8 +550,12 @@ def upload_book():
             flash("The selected file is empty.", "error")
             return redirect(url_for("upload_book"))
 
-        if not has_mobi_header(temporary_path):
-            flash("The selected file does not appear to be a valid MOBI ebook.", "error")
+        if not validate_upload_content(temporary_path, upload_suffix):
+            flash(
+                "The selected file does not appear to be a valid "
+                f"{upload_suffix.lstrip('.').upper()} ebook.",
+                "error",
+            )
             return redirect(url_for("upload_book"))
 
         destination = unique_library_path(safe_name)

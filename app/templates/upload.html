@@ -4,16 +4,18 @@
 {% block content %}
 <section class="narrow-panel upload-panel">
     <p class="eyebrow">Add to library</p>
-    <h1>Upload a MOBI ebook</h1>
+    <h1>Upload an ebook</h1>
     <p class="muted">
-        Select a DRM-free <strong>.mobi</strong> file. It will be added directly to the shared KindleShelf library.
+        Select a DRM-free ebook file. Supported formats: EPUB, MOBI, AZW, AZW3,
+        PDF, DOCX, ODT, RTF, TXT, FB2, HTML, HTM, PRC. Non-MOBI files will be
+        converted to MOBI when downloaded on a Kindle.
     </p>
 
     <form method="post" action="{{ url_for('upload_book') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <label for="ebook">MOBI file</label>
-        <input id="ebook" name="ebook" type="file" accept=".mobi,application/x-mobipocket-ebook" required>
+        <label for="ebook">Ebook file</label>
+        <input id="ebook" name="ebook" type="file" accept=".azw,.azw3,.docx,.epub,.fb2,.htm,.html,.mobi,.odt,.pdf,.prc,.rtf,.txt" required>
 
         <p class="upload-limit">Maximum upload size: {{ config.MAX_UPLOAD_SIZE_MB }} MB</p>
 
