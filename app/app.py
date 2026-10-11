@@ -264,6 +264,11 @@ def safe_download_filename(value: str) -> str:
     return cleaned[:140] or "ebook"
 
 
+def download_timestamp() -> str:
+    now = datetime.now()
+    return now.strftime("-%Y%m%d%H%M%S") + f"{now.microsecond // 1000:03d}"
+
+
 def unique_library_path(filename: str) -> Path:
     candidate = LIBRARY_ROOT / filename
     if not candidate.exists():
@@ -614,7 +619,7 @@ def download_book(book_id: str):
         output_path,
         mimetype="application/x-mobipocket-ebook",
         as_attachment=True,
-        download_name=f"{safe_download_filename(book.title)}.mobi",
+        download_name=f"{safe_download_filename(book.title)}{download_timestamp()}.mobi",
         conditional=True,
         max_age=0,
     )
@@ -643,7 +648,7 @@ def download_book_original(book_id: str):
         book.absolute_path,
         mimetype=ORIGINAL_FORMAT_MIMETYPES.get(suffix, "application/octet-stream"),
         as_attachment=True,
-        download_name=f"{safe_download_filename(book.title)}{suffix}",
+        download_name=f"{safe_download_filename(book.title)}{download_timestamp()}{suffix}",
         conditional=True,
         max_age=0,
     )
@@ -665,7 +670,7 @@ def download_book_azw3(book_id: str):
         output_path,
         mimetype="application/x-mobipocket-ebook",
         as_attachment=True,
-        download_name=f"{safe_download_filename(book.title)}.azw3",
+        download_name=f"{safe_download_filename(book.title)}{download_timestamp()}.azw3",
         conditional=True,
         max_age=0,
     )
