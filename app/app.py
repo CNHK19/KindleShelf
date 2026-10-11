@@ -180,8 +180,11 @@ def clean_display_text(value: str) -> str:
 
 def safe_upload_filename(value: str) -> str:
     name = re.sub(r"[\x00-\x1f]+", "", value)
+    name = unicodedata.normalize("NFKC", name)
+    name = re.sub(r"[\x00-\x1f]+", "", name)
     name = Path(name).name
-    name = re.sub(r'[\\/:*?"<>|]+', "", name).strip(" .")
+    name = re.sub(r'[\\/:*?"<>|]+', " ", name)
+    name = re.sub(r"\s+", " ", name).strip(" .")
     return name
 
 
@@ -260,7 +263,9 @@ def safe_download_stem(value: str) -> str:
 
 
 def safe_download_filename(value: str) -> str:
-    cleaned = re.sub(r'[\\/:*?"<>|\r\n\t]+', "", value).strip(" .")
+    normalized = unicodedata.normalize("NFKC", value)
+    cleaned = re.sub(r'[\\/:*?"<>|\r\n\t]+', " ", normalized)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
     return cleaned[:140] or "ebook"
 
 
